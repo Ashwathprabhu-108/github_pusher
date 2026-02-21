@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify, render_template_string
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
 
-HTML = open(os.path.join(os.path.dirname(__file__), "index.html"), encoding="utf-8").read()
+HTML = open(os.path.join(os.path.dirname(__file__), "templates/index.html"), encoding="utf-8").read()
 
 @app.route("/")
 def index():
