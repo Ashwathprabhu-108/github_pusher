@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitPusher — Push Projects to GitHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10; --surface: #111318; --card: #161a22; --border: #1f2535;
+    --accent: #00e5a0; --accent2: #6c63ff; --warn: #ff5f7e;
+    --text: #e2e8f0; --muted: #5a6480;
+    --mono: 'Space Mono', monospace; --sans: 'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,229,160,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,160,.03) 1px, transparent 1px);
+    background-size: 48px 48px; pointer-events: none; z-index: 0;
+  }
+  .orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; animation: drift 12s ease-in-out infinite alternate; }
+  .orb-1 { width: 500px; height: 500px; background: rgba(0,229,160,.07); top: -200px; left: -200px; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(108,99,255,.08); bottom: -150px; right: -100px; animation-delay: -6s; }
+  @keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(40px,30px) scale(1.1); } }
+  .wrapper { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; padding: 60px 24px 80px; }
+  header { text-align: center; margin-bottom: 52px; }
+  .logo { display: inline-flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .logo-icon {
+    width: 52px; height: 52px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 14px; display: grid; place-items: center; font-size: 24px;
+    box-shadow: 0 0 30px rgba(0,229,160,.3); animation: glow 3s ease-in-out infinite;
+  }
+  @keyframes glow { 0%,100% { box-shadow: 0 0 30px rgba(0,229,160,.3); } 50% { box-shadow: 0 0 60px rgba(0,229,160,.5); } }
+  .logo-text { font-size: 2rem; font-weight: 800; background: linear-gradient(90deg, var(--accent), var(--accent2)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  header p { font-family: var(--mono); font-size: .82rem; color: var(--muted); }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+    padding: 40px; box-shadow: 0 24px 64px rgba(0,0,0,.5); position: relative; overflow: hidden;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .section { margin-bottom: 30px; }
+  .section-label {
+    font-family: var(--mono); font-size: .68rem; color: var(--accent); text-transform: uppercase;
+    letter-spacing: 2px; margin-bottom: 18px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .field { margin-bottom: 18px; }
+  label { display: block; font-family: var(--mono); font-size: .75rem; color: var(--muted); margin-bottom: 8px; letter-spacing: .5px; }
+  label span { color: var(--warn); }
+  input[type="text"], input[type="password"] {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-family: var(--mono); font-size: .88rem; padding: 13px 16px;
+    transition: border-color .2s, box-shadow .2s; outline: none;
+  }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,160,.12); }
+  input::placeholder { color: var(--muted); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 14px; padding: 44px 24px;
+    text-align: center; cursor: pointer; transition: all .25s; position: relative; background: var(--surface);
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(0,229,160,.04); }
+  .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { font-size: 2.4rem; margin-bottom: 10px; display: block; transition: transform .3s; }
+  .drop-zone:hover .drop-icon { transform: translateY(-5px); }
+  .drop-title { font-size: 1rem; font-weight: 600; margin-bottom: 5px; }
+  .drop-sub { font-family: var(--mono); font-size: .73rem; color: var(--muted); }
+  .file-badge {
+    display: none; margin-top: 14px; font-family: var(--mono); font-size: .78rem;
+    color: var(--accent); background: rgba(0,229,160,.08); border: 1px solid rgba(0,229,160,.2);
+    border-radius: 8px; padding: 8px 14px;
+  }
+  .hint { font-family: var(--mono); font-size: .72rem; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+  .hint a { color: var(--accent2); text-decoration: none; }
+  .btn-push {
+    width: 100%; padding: 17px; background: linear-gradient(135deg, var(--accent), #00b87a);
+    color: #0a0c10; border: none; border-radius: 12px; font-family: var(--mono); font-size: 1rem;
+    font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all .25s; margin-top: 8px;
+  }
+  .btn-push:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(0,229,160,.4); }
+  .btn-push:active { transform: translateY(0); }
+  .btn-push:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+  /* Terminal log */
+  .log-box {
+    display: none; margin-top: 28px; background: #0d0f14; border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+  }
+  .log-header {
+    padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: .72rem; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .d-red { background: #ff5f57; } .d-yellow { background: #ffbd2e; } .d-green { background: #28ca42; }
+  .log-body { padding: 20px; font-family: var(--mono); font-size: .82rem; line-height: 1.9; min-height: 60px; }
+  .log-line { opacity: 0; transform: translateX(-8px); animation: slidein .3s forwards; }
+  @keyframes slidein { to { opacity: 1; transform: translateX(0); } }
+  .log-success { color: var(--accent); }
+  .log-error { color: var(--warn); }
+  .log-info { color: var(--muted); }
+  /* Spinner */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(10,12,16,.4); border-top-color: #0a0c10; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 520px) { .row { grid-template-columns: 1fr; } .card { padding: 28px 20px; } }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="wrapper">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🚀</div>
+      <span class="logo-text">GitPusher</span>
+    </div>
+    <p>// upload a zipped project folder → push to any GitHub repo</p>
+  </header>
+
+  <div class="card">
+    <form id="pushForm">
+
+      <!-- REPO -->
+      <div class="section">
+        <div class="section-label">01 &nbsp; Repository</div>
+        <div class="field">
+          <label>REPO URL <span>*</span></label>
+          <input type="text" name="repo_url" placeholder="https://github.com/username/repo.git" required>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>BRANCH</label>
+            <input type="text" name="branch" placeholder="main" value="main">
+          </div>
+          <div class="field">
+            <label>COMMIT MESSAGE</label>
+            <input type="text" name="commit_msg" placeholder="Initial commit" value="Initial commit">
+          </div>
+        </div>
+      </div>
+
+      <!-- AUTH -->
+      <div class="section">
+        <div class="section-label">02 &nbsp; Authentication</div>
+        <div class="row">
+          <div class="field">
+            <label>GITHUB USERNAME</label>
+            <input type="text" name="username" placeholder="your-username">
+          </div>
+          <div class="field">
+            <label>PERSONAL ACCESS TOKEN <span>*</span></label>
+            <input type="password" name="token" placeholder="ghp_xxxxxxxxxxxx" required>
+          </div>
+        </div>
+        <p class="hint">
+          Need a token? Go to <a href="https://github.com/settings/tokens" target="_blank">GitHub → Settings → Developer Settings → Personal Access Tokens</a> and create one with <strong style="color:var(--text)">repo</strong> scope.
+        </p>
+      </div>
+
+      <!-- UPLOAD -->
+      <div class="section">
+        <div class="section-label">03 &nbsp; Project Folder</div>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" name="folder" id="fileInput" accept=".zip" required>
+          <span class="drop-icon">📦</span>
+          <div class="drop-title">Drop your zipped project here</div>
+          <div class="drop-sub">or click to browse &nbsp;·&nbsp; .zip only</div>
+          <div class="file-badge" id="fileBadge">📁 No file selected</div>
+        </div>
+        <p class="hint" style="margin-top:10px">
+          Zip your entire project folder first: right-click → "Compress" (Mac) or "Send to → Compressed folder" (Windows).
+        </p>
+      </div>
+
+      <button type="submit" class="btn-push" id="submitBtn">🚀 &nbsp; PUSH TO GITHUB</button>
+    </form>
+
+    <!-- Terminal output -->
+    <div class="log-box" id="logBox">
+      <div class="log-header">
+        <span class="dot d-red"></span>
+        <span class="dot d-yellow"></span>
+        <span class="dot d-green"></span>
+        &nbsp; terminal output
+      </div>
+      <div class="log-body" id="logBody"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Drag & drop visual
+  const zone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const badge = document.getElementById('fileBadge');
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) { fileInput.files = e.dataTransfer.files; showBadge(e.dataTransfer.files[0]); }
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) showBadge(fileInput.files[0]); });
+
+  function showBadge(file) {
+    badge.style.display = 'block';
+    badge.textContent = `📁 ${file.name}  (${(file.size/1024/1024).toFixed(2)} MB)`;
+  }
+
+  // Form submit
+  const form = document.getElementById('pushForm');
+  const btn  = document.getElementById('submitBtn');
+  const logBox  = document.getElementById('logBox');
+  const logBody = document.getElementById('logBody');
+  let lineIdx = 0;
+
+  function addLine(text, cls = 'log-info') {
+    const div = document.createElement('div');
+    div.className = `log-line ${cls}`;
+    div.style.animationDelay = `${lineIdx * 60}ms`;
+    div.textContent = text;
+    logBody.appendChild(div);
+    lineIdx++;
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> PUSHING...';
+    logBox.style.display = 'block';
+    logBody.innerHTML = '';
+    lineIdx = 0;
+
+    addLine('$ preparing upload...', 'log-info');
+    addLine(`$ target: ${form.repo_url.value}`, 'log-info');
+    addLine(`$ branch: ${form.branch.value || 'main'}`, 'log-info');
+
+    const data = new FormData(form);
+    try {
+      const res  = await fetch('/push', { method: 'POST', body: data });
+      const json = await res.json();
+      if (json.success) {
+        addLine('', 'log-info');
+        addLine('✓ ' + json.message, 'log-success');
+        btn.innerHTML = '✓ &nbsp; PUSHED SUCCESSFULLY!';
+        btn.style.background = 'linear-gradient(135deg,#00e5a0,#00b87a)';
+      } else {
+        addLine('', 'log-info');
+        addLine('✗ ERROR: ' + json.error, 'log-error');
+        btn.innerHTML = '✗ &nbsp; PUSH FAILED — TRY AGAIN';
+        btn.style.background = 'linear-gradient(135deg,#ff5f7e,#c0392b)';
+      }
+    } catch (err) {
+      addLine('✗ Network error: ' + err.message, 'log-error');
+      btn.innerHTML = '✗ &nbsp; PUSH FAILED — TRY AGAIN';
+      btn.style.background = 'linear-gradient(135deg,#ff5f7e,#c0392b)';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
